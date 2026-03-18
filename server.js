@@ -7,15 +7,22 @@ const cors = require("cors");
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: "*"
+}));
 
-// 🔥 IMPORTANT: Your bucket region (Mumbai)
+/* ===================== AWS CONFIG ===================== */
 AWS.config.update({
-  region: "ap-south-1",
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || "ap-south-1",
 });
 
 const s3 = new AWS.S3();
+
+/* ===================== MULTER ===================== */
 const upload = multer({ dest: "uploads/" });
+
 /* ===================== UPLOAD ===================== */
 app.post("/upload", upload.array("files"), async (req, res) => {
   try {
@@ -32,16 +39,18 @@ app.post("/upload", upload.array("files"), async (req, res) => {
 
       uploaded.push(file.originalname);
 
-      fs.unlinkSync(file.path); // delete temp file
+      fs.unlinkSync(file.path);
     }
 
     res.json({ files: uploaded });
 
   } catch (err) {
-    console.log(err);
+    console.log("UPLOAD ERROR:", err);
     res.status(500).json({ error: "Upload failed" });
   }
 });
+
+/* ===================== MERGE ===================== */
 app.post("/merge", async (req, res) => {
   try {
     const files = req.body.files;
@@ -79,12 +88,19 @@ app.post("/merge", async (req, res) => {
     res.json({ downloadUrl: url });
 
   } catch (err) {
-    console.log(err);
+    console.log("MERGE ERROR:", err);
     res.status(500).json({ error: "Merge failed" });
   }
 });
 
+/* ===================== HEALTH CHECK (IMPORTANT FOR RENDER) ===================== */
+app.get("/", (req, res) => {
+  res.send("PDF Merge API Running 🚀");
+});
+
 /* ===================== START SERVER ===================== */
-app.listen(3000, "0.0.0.0", () => {
-  console.log("Server running on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
